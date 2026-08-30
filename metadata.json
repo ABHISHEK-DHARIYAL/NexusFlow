@@ -1,6 +1,8 @@
 {
-  "name": "ThreadForge",
-  "description": "System programmer thread pool & concurrent task scheduler engine with interactive 3D visualization and dashboard statistics.",
+  "name": "Remix Remix Remix NexusFlow",
+  "description": "AI-Powered Developer Intelligence Platform",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -1,0 +1,1422 @@
+// Prisma Schema for NexusFlow — AI-Powered Developer Intelligence Platform
+// Database Provider: MySQL
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum RepositoryVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum SyncStatus {
+  NOT_IMPORTED
+  IMPORTING
+  SYNCING
+  SYNCED
+  FAILED
+}
+
+enum TaskType {
+  REPO_ANALYSIS
+  SECURITY_AUDIT
+  CODE_QUALITY_CHECK
+  ARCHITECTURE_REVIEW
+  FULL_SCAN
+  REPOSITORY_SYNC
+  AI_ANALYSIS
+  LEETCODE_SYNC
+  LEETCODE_ANALYSIS
+  CODEFORCES_SYNC
+  CODEFORCES_ANALYSIS
+  PORTFOLIO_CRAWL
+  PORTFOLIO_ANALYSIS
+  RESUME_PARSE
+  RESUME_ANALYSIS
+  RESUME_GITHUB_VERIFICATION
+  CROSS_PLATFORM_VERIFICATION
+  JOB_ANALYSIS
+  JOB_READINESS_ANALYSIS
+  COMPANY_PREPARATION
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+  SCHEDULED
+}
+
+enum WorkerStatus {
+  IDLE
+  BUSY
+  STOPPING
+  STOPPED
+  UNHEALTHY
+}
+
+enum FindingCategory {
+  SECURITY
+  PERFORMANCE
+  ARCHITECTURE
+  MAINTAINABILITY
+  CODE_STYLE
+  BUG_RISK
+  DOCUMENTATION
+}
+
+enum SeverityLevel {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum LogLevel {
+  TRACE
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+}
+
+enum NotificationType {
+  TASK_COMPLETED
+  TASK_FAILED
+  SYSTEM_ALERT
+  ANALYSIS_READY
+  SECURITY_WARNING
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id            String        @id @default(uuid())
+  name          String?
+  username      String        @unique
+  email         String        @unique
+  avatarUrl     String?
+  githubId      String        @unique
+  role          UserRole      @default(USER)
+  status        AccountStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  githubAccount     GitHubAccount?
+  leetcodeProfile   LeetCodeProfile?
+  codeforcesProfile CodeforcesProfile?
+  portfolio         Portfolio?
+  resumes           Resume[]
+  githubVerifications ResumeGitHubVerification[]
+  crossPlatformVerifications CrossPlatformVerification[]
+  jobDescriptions   JobDescription[]
+  jobMatches        JobMatch[]
+  jobReadinesses    JobReadiness[]
+  companyPreparations CompanyPreparation[]
+  careerChats       CareerChat[]
+  interviewSessions InterviewSession[]
+  applications      Application[]
+  repositories      Repository[]
+  tasks           Task[]
+  notifications Notification[]
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+  settings      UserSettings?
+  careerReports CareerReport[]
+  scheduledJobs ScheduledJob[]
+
+  @@index([githubId])
+  @@index([email])
+  @@index([role, status])
+  @@map("users")
+}
+
+model GitHubAccount {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  githubUserId   String    @unique
+  githubUsername String
+  accessToken    String    @db.Text // Encrypted at application layer
+  refreshToken   String?   @db.Text // Encrypted at application layer
+  tokenExpiresAt DateTime?
+  profileUrl     String?
+  avatarUrl      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([githubUserId])
+  @@map("github_accounts")
+}
+
+model Repository {
+  id            String               @id @default(uuid())
+  userId        String
+  githubRepoId  BigInt               @unique
+  owner         String
+  name          String
+  fullName      String               @unique
+  description   String?              @db.Text
+  defaultBranch String               @default("main")
+  visibility    RepositoryVisibility @default(PUBLIC)
+  syncStatus    SyncStatus           @default(NOT_IMPORTED)
+  language      String?
+  starsCount    Int                  @default(0)
+  forksCount    Int                  @default(0)
+  openIssues    Int                  @default(0)
+  githubUrl     String
+  cloneUrl      String
+  lastSyncedAt  DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relations
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metadata        RepositoryMetadata?
+  statistics      RepositoryStatistics?
+  tasks           Task[]
+  analysisReports AIAnalysisReport[]
+  notifications   Notification[]
+  branches        RepositoryBranch[]
+  commits         RepositoryCommit[]
+  contributors    RepositoryContributor[]
+  issues          RepositoryIssue[]
+  pullRequests    RepositoryPullRequest[]
+  languages       RepositoryLanguage[]
+  syncs           RepositorySync[]
+  files           RepositoryFile[]
+
+  @@index([userId])
+  @@index([owner, name])
+  @@index([language])
+  @@index([githubRepoId])
+  @@map("repositories")
+}
+
+model RepositoryMetadata {
+  id              String   @id @default(uuid())
+  repositoryId    String   @unique
+  license         String?
+  isFork          Boolean  @default(false)
+  isArchived      Boolean  @default(false)
+  hasTopics       String?  @db.Text // JSON string of tags/topics
+  defaultBranchSha String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@map("repository_metadata")
+}
+
+model RepositoryStatistics {
+  id               String   @id @default(uuid())
+  repositoryId     String   @unique
+  linesOfCode      BigInt   @default(0)
+  commitCount      Int      @default(0)
+  branchCount      Int      @default(0)
+  pullRequestCount Int      @default(0)
+  contributorCount Int      @default(0)
+  totalSizeBytes   BigInt   @default(0)
+  healthScore      Float    @default(0.0)
+  lastAnalyzedAt   DateTime?
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@map("repository_statistics")
+}
+
+model RepositoryBranch {
+  id           String   @id @default(uuid())
+  repositoryId String
+  name         String
+  isProtected  Boolean  @default(false)
+  commitSha    String?
+  commitDate   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId])
+  @@map("repository_branches")
+}
+
+model RepositoryCommit {
+  id              String   @id @default(uuid())
+  repositoryId    String
+  sha             String
+  message         String   @db.Text
+  authorName      String?
+  authorEmail     String?
+  authorAvatarUrl String?
+  commitDate      DateTime
+  githubUrl       String?
+  createdAt       DateTime @default(now())
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, sha])
+  @@index([repositoryId, commitDate])
+  @@map("repository_commits")
+}
+
+model RepositoryContributor {
+  id            String   @id @default(uuid())
+  repositoryId  String
+  username      String
+  avatarUrl     String?
+  contributions Int      @default(0)
+  profileUrl    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, username])
+  @@index([repositoryId])
+  @@map("repository_contributors")
+}
+
+model RepositoryIssue {
+  id              String   @id @default(uuid())
+  repositoryId    String
+  issueNumber     Int
+  title           String   @db.Text
+  state           String   @default("open") // open, closed
+  authorUsername  String?
+  authorAvatarUrl String?
+  labels          String?  @db.Text // JSON string
+  githubUrl       String?
+  githubCreatedAt DateTime?
+  githubUpdatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, issueNumber])
+  @@index([repositoryId, state])
+  @@map("repository_issues")
+}
+
+model RepositoryPullRequest {
+  id              String   @id @default(uuid())
+  repositoryId    String
+  prNumber        Int
+  title           String   @db.Text
+  state           String   @default("open") // open, closed, merged
+  authorUsername  String?
+  authorAvatarUrl String?
+  isMerged        Boolean  @default(false)
+  githubUrl       String?
+  githubCreatedAt DateTime?
+  githubUpdatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, prNumber])
+  @@index([repositoryId, state])
+  @@map("repository_pull_requests")
+}
+
+model RepositoryLanguage {
+  id           String   @id @default(uuid())
+  repositoryId String
+  name         String
+  bytes        BigInt   @default(0)
+  percentage   Float    @default(0.0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId])
+  @@map("repository_languages")
+}
+
+model RepositorySync {
+  id           String     @id @default(uuid())
+  repositoryId String
+  taskId       String?    @unique
+  status       SyncStatus @default(SYNCING)
+  startedAt    DateTime   @default(now())
+  completedAt  DateTime?
+  error        String?    @db.Text
+  fileCount    Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, createdAt])
+  @@map("repository_syncs")
+}
+
+model RepositoryFile {
+  id           String   @id @default(uuid())
+  repositoryId String
+  path         String
+  sha          String
+  size         BigInt   @default(0)
+  fileType     String   @default("file")
+  language     String?
+  lastModified DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, path])
+  @@index([repositoryId, path])
+  @@map("repository_files")
+}
+
+model Task {
+  id               String            @id @default(uuid())
+  repositoryId     String?
+  userId           String
+  taskType         TaskType          @default(REPO_ANALYSIS)
+  priority         TaskPriority      @default(MEDIUM)
+  status           TaskStatus        @default(QUEUED)
+  progress         Int               @default(0) // Percentage 0-100
+  retryCount       Int               @default(0)
+  maxRetries       Int               @default(3)
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  failureReason    String?           @db.Text
+  workerId         String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  repository       Repository?       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedWorker   Worker?           @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  executionLogs    TaskExecutionLog[]
+  analysisReport     AIAnalysisReport?
+  leetcodeAnalysis   LeetCodeAnalysis?
+  codeforcesAnalysis CodeforcesAnalysis?
+  portfolioAnalysis  PortfolioAnalysis?
+  resumeAnalysis     ResumeAnalysis?
+  resumeGitHubVerification ResumeGitHubVerification?
+  crossPlatformVerification CrossPlatformVerification?
+  jobMatch           JobMatch?
+  jobReadiness       JobReadiness?
+  companyPreparation CompanyPreparation?
+  taskQueueItem      TaskQueueItem?
+  notifications    Notification[]
+
+  @@index([status, priority, createdAt])
+  @@index([userId])
+  @@index([repositoryId])
+  @@index([workerId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model TaskQueueItem {
+  id             String   @id @default(uuid())
+  taskId         String   @unique
+  priorityWeight Int      @default(100) // Calculated numeric weight for priority queue
+  addedAt        DateTime @default(now())
+  lockedAt       DateTime?
+  lockedByWorker String?
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([priorityWeight, addedAt])
+  @@map("task_queue_items")
+}
+
+model Worker {
+  id             String       @id @default(uuid())
+  workerId       String       @unique // E.g. java-worker-node-01
+  hostIdentifier String
+  status         WorkerStatus @default(IDLE)
+  currentTaskId  String?
+  activeThreads  Int          @default(0)
+  maxThreads     Int          @default(10)
+  startedAt      DateTime     @default(now())
+  lastHeartbeat  DateTime     @default(now())
+  tasksCompleted Int          @default(0)
+  tasksFailed    Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  assignedTasks Task[]
+  logs          TaskExecutionLog[]
+  metrics       WorkerMetrics[]
+
+  @@index([status, lastHeartbeat])
+  @@index([workerId])
+  @@map("workers")
+}
+
+model WorkerMetrics {
+  id                 String   @id @default(uuid())
+  workerId           String
+  cpuUsagePercent    Float
+  memoryUsageMB      Float
+  memoryUsagePercent Float
+  activeThreads      Int
+  queueDepth         Int
+  tasksCompleted     Int
+  tasksFailed        Int
+  avgExecutionTimeMs Float
+  throughputPerMin   Float
+  timestamp          DateTime @default(now())
+
+  // Relations
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, timestamp])
+  @@index([timestamp])
+  @@map("worker_metrics")
+}
+
+model TaskExecutionLog {
+  id        String   @id @default(uuid())
+  taskId    String
+  workerId  String?
+  level     LogLevel @default(INFO)
+  message   String   @db.Text
+  timestamp DateTime @default(now())
+
+  // Relations
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  worker Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, timestamp])
+  @@index([workerId])
+  @@index([level])
+  @@map("task_execution_logs")
+}
+
+model AIAnalysisReport {
+  id                   String    @id @default(uuid())
+  repositoryId         String
+  taskId               String    @unique
+  overallScore         Float     @default(0.0)
+  securityScore        Float     @default(0.0)
+  performanceScore     Float     @default(0.0)
+  architectureScore    Float     @default(0.0)
+  maintainabilityScore Float     @default(0.0)
+  documentationScore  Float     @default(0.0)
+  summary              String    @db.Text
+  recommendations      Json?
+  modelName            String    @default("gemini-3.6-flash")
+  modelVersion         String    @default("1.0")
+  analyzedAt           DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+
+  // Relations
+  repository Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  task       Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  findings   AIFinding[]
+
+  @@index([repositoryId, createdAt])
+  @@index([taskId])
+  @@map("ai_analysis_reports")
+}
+
+model AIFinding {
+  id             String          @id @default(uuid())
+  reportId       String
+  category       FindingCategory @default(MAINTAINABILITY)
+  severity       SeverityLevel   @default(MEDIUM)
+  title          String
+  description    String          @db.Text
+  filePath       String?
+  lineNumber     Int?
+  snippet        String?         @db.Text
+  recommendation String?         @db.Text
+  createdAt      DateTime        @default(now())
+
+  // Relations
+  report AIAnalysisReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, severity])
+  @@index([category])
+  @@map("ai_findings")
+}
+
+model Notification {
+  id                  String           @id @default(uuid())
+  userId              String
+  type                NotificationType @default(ANALYSIS_READY)
+  title               String
+  message             String           @db.Text
+  isRead              Boolean          @default(false)
+  relatedTaskId       String?
+  relatedRepositoryId String?
+  createdAt           DateTime         @default(now())
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task       Task?       @relation(fields: [relatedTaskId], references: [id], onDelete: SetNull)
+  repository Repository? @relation(fields: [relatedRepositoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique // SHA-256 hash of the refresh token
+  familyId  String   // Family identifier for token rotation tracking
+  isRevoked Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  sessionToken String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@map("sessions")
+}
+
+model UserSettings {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  theme                  String   @default("system")
+  defaultAnalysisPriority TaskPriority @default(MEDIUM)
+  emailNotifications     Boolean  @default(true)
+  webhookUrl             String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model LeetCodeProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  username       String
+  profileUrl     String
+  realName       String?
+  ranking        Int?
+  reputation     Int?
+  totalSolved    Int      @default(0)
+  easySolved     Int      @default(0)
+  mediumSolved   Int      @default(0)
+  hardSolved     Int      @default(0)
+  acceptanceRate Float    @default(0.0)
+  streak         Int      @default(0)
+  dsaScore       Float    @default(0.0)
+  contestRating  Float    @default(0.0)
+  maxRating      Float    @default(0.0)
+  globalRanking  Int?
+  lastSyncedAt   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contests       LeetCodeContest[]
+  topicStats     LeetCodeTopicStats[]
+  analyses       LeetCodeAnalysis[]
+
+  @@index([userId])
+  @@index([username])
+  @@map("leetcode_profiles")
+}
+
+model LeetCodeContest {
+  id             String   @id @default(uuid())
+  profileId      String
+  contestName    String
+  contestDate    DateTime
+  rating         Float    @default(0.0)
+  ranking        Int      @default(0)
+  problemsSolved Int      @default(0)
+  totalProblems  Int      @default(4)
+  score          Float    @default(0.0)
+  ratingChange   Float    @default(0.0)
+  createdAt      DateTime @default(now())
+
+  profile        LeetCodeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, contestDate])
+  @@map("leetcode_contests")
+}
+
+model LeetCodeTopicStats {
+  id            String   @id @default(uuid())
+  profileId     String
+  topicName     String
+  solvedCount   Int      @default(0)
+  easyCount     Int      @default(0)
+  mediumCount   Int      @default(0)
+  hardCount     Int      @default(0)
+  strengthLevel String   @default("MODERATE") // "STRONG" | "MODERATE" | "WEAK"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profile       LeetCodeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, topicName])
+  @@index([profileId])
+  @@map("leetcode_topic_stats")
+}
+
+model LeetCodeAnalysis {
+  id              String   @id @default(uuid())
+  profileId       String
+  taskId          String?  @unique
+  dsaScore        Float    @default(0.0)
+  summary         String   @db.Text
+  strengths       Json
+  weaknesses      Json
+  recommendations Json
+  learningRoadmap Json
+  contestStrategy Json
+  createdAt       DateTime @default(now())
+
+  profile         LeetCodeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  task            Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt])
+  @@map("leetcode_analyses")
+}
+
+model CodeforcesProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  handle         String
+  profileUrl     String
+  rating         Int?
+  maxRating      Int?
+  rank           String?
+  maxRank        String?
+  contribution   Int      @default(0)
+  friendOfCount  Int      @default(0)
+  titlePhoto     String?
+  organization   String?
+  cpScore        Float    @default(0.0)
+  lastSyncedAt   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contests       CodeforcesContest[]
+  tagStats       CodeforcesTagStats[]
+  analyses       CodeforcesAnalysis[]
+
+  @@index([userId])
+  @@index([handle])
+  @@map("codeforces_profiles")
+}
+
+model CodeforcesContest {
+  id             String   @id @default(uuid())
+  profileId      String
+  contestId      Int
+  contestName    String
+  contestDate    DateTime
+  rank           Int      @default(0)
+  ratingBefore   Int      @default(0)
+  ratingAfter    Int      @default(0)
+  ratingChange   Int      @default(0)
+  problemsSolved Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  profile        CodeforcesProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, contestDate])
+  @@map("codeforces_contests")
+}
+
+model CodeforcesTagStats {
+  id            String   @id @default(uuid())
+  profileId     String
+  tagName       String
+  solvedCount   Int      @default(0)
+  avgDifficulty Float    @default(0.0)
+  strengthLevel String   @default("MODERATE") // "STRONG" | "MODERATE" | "WEAK"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profile       CodeforcesProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, tagName])
+  @@index([profileId])
+  @@map("codeforces_tag_stats")
+}
+
+model CodeforcesAnalysis {
+  id              String   @id @default(uuid())
+  profileId       String
+  taskId          String?  @unique
+  cpScore         Float    @default(0.0)
+  summary         String   @db.Text
+  strengths       Json
+  weaknesses      Json
+  recommendations Json
+  learningRoadmap Json
+  contestStrategy Json
+  createdAt       DateTime @default(now())
+
+  profile         CodeforcesProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  task            Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt])
+  @@map("codeforces_analyses")
+}
+
+model Portfolio {
+  id             String             @id @default(uuid())
+  userId         String             @unique
+  url            String             @db.Text
+  domain         String
+  title          String?
+  description    String?            @db.Text
+  crawlStatus    String             @default("NOT_STARTED") // NOT_STARTED, QUEUED, CRAWLING, COMPLETED, FAILED, CANCELLED
+  lastCrawledAt  DateTime?
+  robotsAllowed  Boolean            @default(true)
+  pageCount      Int                @default(0)
+  error          String?            @db.Text
+  qualityScore   Float              @default(0.0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages          PortfolioPage[]
+  projects       PortfolioProject[]
+  links          PortfolioLink[]
+  analyses       PortfolioAnalysis[]
+
+  @@index([userId])
+  @@index([domain])
+  @@map("portfolios")
+}
+
+model PortfolioPage {
+  id              String    @id @default(uuid())
+  portfolioId     String
+  url             String    @db.Text
+  path            String
+  title           String?
+  metaDescription String?   @db.Text
+  canonical       String?
+  depth           Int       @default(0)
+  statusCode      Int       @default(200)
+  contentType     String    @default("text/html")
+  wordCount       Int       @default(0)
+  headings        Json      // Array of headings
+  crawledAt       DateTime  @default(now())
+
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([portfolioId, path])
+  @@map("portfolio_pages")
+}
+
+model PortfolioProject {
+  id               String    @id @default(uuid())
+  portfolioId      String
+  name             String
+  description      String?   @db.Text
+  technologies     Json      // Array of technology names
+  githubUrl        String?
+  liveDemoUrl      String?
+  documentationUrl String?
+  imageUrl         String?
+  sourcePageUrl    String?
+  presentationScore Float    @default(0.0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  portfolio        Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@map("portfolio_projects")
+}
+
+model PortfolioLink {
+  id          String    @id @default(uuid())
+  portfolioId String
+  sourceUrl   String    @db.Text
+  targetUrl   String    @db.Text
+  linkType    String    @default("INTERNAL") // INTERNAL, EXTERNAL, GITHUB, RESUME, SOCIAL, BROKEN
+  anchorText  String?
+  isBroken    Boolean   @default(false)
+  statusCode  Int?
+  createdAt   DateTime  @default(now())
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([portfolioId, linkType])
+  @@map("portfolio_links")
+}
+
+model PortfolioAnalysis {
+  id                           String    @id @default(uuid())
+  portfolioId                  String
+  taskId                       String?   @unique
+  portfolioQualityScore        Float     @default(0.0)
+  seoScore                     Float     @default(0.0)
+  accessibilityScore           Float     @default(0.0)
+  navigationScore              Float     @default(0.0)
+  projectPresentationScore     Float     @default(0.0)
+  recruiterReadinessScore      Float     @default(0.0)
+  summary                      String    @db.Text
+  strengths                    Json
+  weaknesses                   Json
+  recruiterPerspective         String    @db.Text
+  seoRecommendations           Json
+  accessibilityRecommendations Json
+  designContentRecommendations Json
+  improvementRoadmap           Json
+  createdAt                    DateTime  @default(now())
+
+  portfolio                    Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  task                         Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([portfolioId, createdAt])
+  @@map("portfolio_analyses")
+}
+
+model Resume {
+  id              String           @id @default(uuid())
+  userId          String
+  title           String           @default("My Resume")
+  fileUrl         String?
+  rawText         String           @db.Text
+  contactInfo     Json
+  workExperience  Json
+  education       Json
+  skills          Json
+  projects        Json
+  certifications  Json
+  atsScore        Float            @default(0.0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses        ResumeAnalysis[]
+  githubVerifications ResumeGitHubVerification[]
+
+  @@index([userId, createdAt])
+  @@map("resumes")
+}
+
+model ResumeAnalysis {
+  id                    String   @id @default(uuid())
+  resumeId              String
+  taskId                String?  @unique
+  atsScore              Float    @default(0.0)
+  formattingScore       Float    @default(0.0)
+  contentImpactScore    Float    @default(0.0)
+  skillsMatchScore      Float    @default(0.0)
+  completenessScore     Float    @default(0.0)
+  summary               String   @db.Text
+  actionableSuggestions Json
+  bulletEvaluations     Json
+  missingKeywords       Json
+  formattingIssues      Json
+  createdAt             DateTime @default(now())
+
+  resume                Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  task                  Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([resumeId, createdAt])
+  @@map("resume_analyses")
+}
+
+model ResumeGitHubVerification {
+  id                      String   @id @default(uuid())
+  resumeId                String
+  userId                  String
+  taskId                  String?  @unique
+  overallCoverageScore    Float    @default(0.0)
+  verifiedClaimsCount     Int      @default(0)
+  partialClaimsCount      Int      @default(0)
+  notFoundClaimsCount     Int      @default(0)
+  unverifiableClaimsCount Int      @default(0)
+  summary                 String   @db.Text
+  claims                  Json
+  projectMatches          Json
+  strongProjects          Json
+  recommendations         Json
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  resume                  Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task                    Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([resumeId, createdAt])
+  @@index([userId])
+  @@map("resume_github_verifications")
+}
+
+model CrossPlatformVerification {
+  id                                   String   @id @default(uuid())
+  userId                               String
+  taskId                               String?  @unique
+  technicalConsistencyScore            Float    @default(0.0)
+  projectConsistencyScore              Float    @default(0.0)
+  cpConsistencyScore                   Float    @default(0.0)
+  technologyConsistencyScore           Float    @default(0.0)
+  overallCoverageScore                 Float    @default(0.0)
+  verifiedClaimsCount                  Int      @default(0)
+  partialClaimsCount                   Int      @default(0)
+  notFoundClaimsCount                  Int      @default(0)
+  unverifiableClaimsCount              Int      @default(0)
+  discrepancyCount                     Int      @default(0)
+  summary                              String   @db.Text
+  claims                               Json
+  discrepancies                        Json
+  projectCrossVerifications            Json
+  competitiveProgrammingVerifications  Json
+  technologyMatrix                     Json
+  strongProfileSignals                 Json
+  missingEvidenceRecommendations       Json
+  recommendations                      Json
+  sourcesUsed                          Json
+  createdAt                            DateTime @default(now())
+  updatedAt                            DateTime @updatedAt
+
+  user                                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task                                 Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("cross_platform_verifications")
+}
+
+model JobDescription {
+  id              String         @id @default(uuid())
+  userId          String
+  title           String
+  company         String
+  location        String?
+  employmentType  String?
+  sourceUrl       String?
+  rawDescription  String         @db.Text
+  normalizedText  String         @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches         JobMatch[]
+  readinesses     JobReadiness[]
+  companyPreparations CompanyPreparation[]
+  careerChats         CareerChat[]
+  interviewSessions   InterviewSession[]
+  applications        Application[]
+
+  @@index([userId, createdAt])
+  @@map("job_descriptions")
+}
+
+model JobMatch {
+  id                     String         @id @default(uuid())
+  jobId                  String
+  userId                 String
+  taskId                 String?        @unique
+  overallMatchScore      Float          @default(0.0)
+  matchLabel             String         @default("Strong Alignment")
+  requiredSkillCoverage  Float          @default(0.0)
+  preferredSkillCoverage Float          @default(0.0)
+  projectRelevanceScore  Float          @default(0.0)
+  experienceMatchStatus  String         @default("MATCHED")
+  educationMatchStatus   String         @default("MATCHED")
+  cpRelevanceStatus      String         @default("NOT_APPLICABLE")
+  summary                String         @db.Text
+  extractedRequirements  Json
+  skillMatches           Json
+  projectRelevance       Json
+  missingSkills          Json
+  keywordAlignment       Json
+  recommendations        Json
+  interviewPriorities    Json
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  job                    JobDescription @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user                   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task                   Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, createdAt])
+  @@index([userId, createdAt])
+  @@map("job_matches")
+}
+
+model JobReadiness {
+  id                      String         @id @default(uuid())
+  jobId                   String
+  userId                  String
+  taskId                  String?        @unique
+  score                   Float          @default(0.0)
+  level                   String         @default("DEVELOPING")
+  confidence              String         @default("MEDIUM")
+  interviewReadinessScore Float          @default(0.0)
+  dsaRelevance            String         @default("NOT_REQUIRED")
+  dimensions              Json
+  criticalGaps            Json
+  readinessBlockers       Json
+  strongSignals           Json
+  weakSignals             Json
+  interviewPrep           Json
+  preparationPriorities   Json
+  projectLeverage         Json
+  whatIfSimulation        Json
+  executiveSummary        String         @db.Text
+  dataFreshness           Json
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  job                     JobDescription @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user                    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task                    Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, createdAt])
+  @@index([userId, createdAt])
+  @@map("job_readinesses")
+}
+
+model CompanyPreparation {
+  id                            String         @id @default(uuid())
+  jobId                         String
+  userId                        String
+  taskId                        String?        @unique
+  companyName                   String
+  jobTitle                      String
+  jobMatchScore                 Float          @default(0.0)
+  jobReadinessScore             Float          @default(0.0)
+  preparationCoverageScore      Float          @default(0.0)
+  topPriorityTopic              String         @default("")
+  companyProfile                Json
+  coverageFormulaBreakdown      Json
+  priorityEngineFormulaDoc      String         @db.Text
+  priorityItems                 Json
+  dsaPreparation                Json
+  technicalAndSystemDesignPrep  Json
+  projectPreparations           Json
+  behavioralPreparations        Json
+  companyResearch               Json
+  resumePositioning             Json
+  profileGaps                   Json
+  skillTransfers                Json
+  roadmap                       Json
+  executiveSummary              String         @db.Text
+  noFabricationDisclaimer       String         @db.Text
+  createdAt                     DateTime       @default(now())
+  updatedAt                     DateTime       @updatedAt
+
+  job                           JobDescription @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user                          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task                          Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, createdAt])
+  @@index([userId, createdAt])
+  @@map("company_preparations")
+}
+
+model CareerChat {
+  id          String              @id @default(uuid())
+  userId      String
+  jobId       String?
+  title       String
+  mode        String              @default("GENERAL_CAREER_CHAT")
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  messages    CareerChatMessage[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job         JobDescription?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("career_chats")
+}
+
+model CareerChatMessage {
+  id              String      @id @default(uuid())
+  chatId          String
+  sender          String      // 'USER' | 'ASSISTANT' | 'SYSTEM' | 'INTERVIEWER' | 'EVALUATOR'
+  content         String      @db.Text
+  mode            String?
+  sourcesUsed     Json?       // string[]
+  evidence        Json?       // string[]
+  recommendations Json?       // string[]
+  score           Float?      // 0-100
+  evaluation      Json?       // evaluation breakdown
+  createdAt       DateTime    @default(now())
+
+  chat            CareerChat  @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("career_chat_messages")
+}
+
+model InterviewSession {
+  id            String              @id @default(uuid())
+  userId        String
+  jobId         String?
+  interviewType String              @default("Technical")
+  difficulty    String              @default("Medium")
+  status        String              @default("IN_PROGRESS")
+  overallScore  Float?              @default(0.0)
+  scoreBreakdown Json?
+  finalFeedback String?             @db.Text
+  startedAt     DateTime            @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  questions     InterviewQuestion[]
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job           JobDescription?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("interview_sessions")
+}
+
+model InterviewQuestion {
+  id               String            @id @default(uuid())
+  sessionId        String
+  questionIndex    Int
+  questionText     String            @db.Text
+  category         String
+  difficulty       String
+  expectedKeyPoints Json?
+  createdAt        DateTime          @default(now())
+
+  answer           InterviewAnswer?
+  session          InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, questionIndex])
+  @@map("interview_questions")
+}
+
+model InterviewAnswer {
+  id            String            @id @default(uuid())
+  questionId    String            @unique
+  userResponse  String            @db.Text
+  score         Float             @default(0.0)
+  strengths     Json
+  weaknesses    Json
+  missingPoints Json
+  improvedAnswer String           @db.Text
+  createdAt     DateTime          @default(now())
+
+  question      InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("interview_answers")
+}
+
+model Application {
+  id              String                 @id @default(uuid())
+  userId          String
+  jobId           String?
+  companyName     String
+  jobTitle        String
+  location        String?
+  jobUrl          String?
+  applicationDate DateTime               @default(now())
+  status          String                 @default("SAVED")
+  priority        String                 @default("MEDIUM")
+  notes           String?                @db.Text
+  salaryRange     String?
+  source          String?                @default("OTHER")
+  deadline        DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job             JobDescription?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  events          ApplicationEvent[]
+  followUps       ApplicationFollowUp[]
+
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([jobId])
+  @@map("applications")
+}
+
+model ApplicationEvent {
+  id            String      @id @default(uuid())
+  applicationId String
+  type          String
+  title         String
+  description   String?     @db.Text
+  eventDate     DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, eventDate])
+  @@map("application_events")
+}
+
+model ApplicationFollowUp {
+  id            String      @id @default(uuid())
+  applicationId String
+  title         String
+  followUpDate  DateTime
+  followUpNote  String?     @db.Text
+  completed     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, followUpDate])
+  @@map("application_follow_ups")
+}
+
+model CareerReport {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String
+  type            String   // PROFILE, RESUME, GITHUB, PORTFOLIO, LEETCODE, CODEFORCES, JOB, READINESS, VERIFICATION, COMPANY_PREPARATION, CAREER
+  summary         String   @db.Text
+  scores          Json?
+  strengths       Json?
+  gaps            Json?
+  recommendations Json?
+  evidence        Json?
+  sourcesUsed     Json?
+  freshnessStatus String   @default("FRESH") // FRESH, STALE, UNAVAILABLE
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, type])
+  @@map("career_reports")
+}
+
+model ScheduledJob {
+  id                  String                  @id @default(uuid())
+  userId              String
+  name                String
+  description         String?                 @db.Text
+  jobType             String                  // GITHUB_SYNC, LEETCODE_SYNC, CODEFORCES_SYNC, PORTFOLIO_REFRESH, RESUME_ANALYSIS, PROFILE_REFRESH, JOB_READINESS_REFRESH, CAREER_REPORT, APPLICATION_FOLLOWUP_CHECK, CAREER_INSIGHT
+  schedule            String                  // E.g. "DAILY", "WEEKLY", "MONTHLY", or cron expression "0 9 * * *"
+  frequency           String                  @default("DAILY") // DAILY, WEEKLY, MONTHLY, CUSTOM_CRON, INTERVAL
+  time                String?                 @default("09:00") // E.g. "09:00"
+  timezone            String                  @default("UTC")
+  enabled             Boolean                 @default(true)
+  status              String                  @default("ACTIVE") // ACTIVE, PAUSED, FAILED, NEEDS_ATTENTION, DISABLED
+  resourceId          String?
+  lastRunAt           DateTime?
+  nextRunAt           DateTime?
+  lastStatus          String?
+  lastError           String?                 @db.Text
+  consecutiveFailures Int                     @default(0)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions          ScheduledJobExecution[]
+
+  @@index([userId, status])
+  @@index([enabled, status, nextRunAt])
+  @@map("scheduled_jobs")
+}
+
+model ScheduledJobExecution {
+  id                  String       @id @default(uuid())
+  scheduledJobId      String
+  userId              String
+  taskId              String?
+  scheduledOccurrence DateTime?
+  startedAt           DateTime     @default(now())
+  completedAt         DateTime?
+  status              String       @default("QUEUED") // QUEUED, RUNNING, COMPLETED, FAILED, SKIPPED, CANCELLED
+  error               String?      @db.Text
+  durationMs          Int?
+  createdAt           DateTime     @default(now())
+
+  scheduledJob        ScheduledJob @relation(fields: [scheduledJobId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledJobId, createdAt])
+  @@index([userId])
+  @@index([scheduledJobId, scheduledOccurrence])
+  @@map("scheduled_job_executions")
+}
+
+
+
+
+
+
+
