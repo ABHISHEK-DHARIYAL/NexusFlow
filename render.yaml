@@ -1,0 +1,27 @@
+# One-service deploy: Render builds the frontend + backend and serves both
+# from the same URL (so login cookies are first-party and need no CORS setup).
+services:
+  - type: web
+    name: nexusflow
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start        # runs "prisma migrate deploy" first, then the server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL        # MySQL connection string - paste it in the Render dashboard
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL        # e.g. https://nexusflow.onrender.com
+        sync: false
+      - key: BACKEND_URL         # same URL as above
+        sync: false
