@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { apiClient as axios } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { FileCheck, ArrowRight, RefreshCw, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Card } from '../ui/Card';
@@ -14,7 +14,7 @@ export const ResumeDashboardCard: React.FC = () => {
 
   useEffect(() => {
     axios
-      .get('/api/resume')
+      .get('/resume')
       .then((res) => {
         if (res.data.success && res.data.data) {
           setResume(res.data.data);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiClient as axios } from '../../services/apiClient';
 import {
   ShieldCheck,
   RefreshCw,
@@ -42,7 +42,7 @@ export const ResumeGitHubVerificationTab: React.FC<ResumeGitHubVerificationTabPr
   const fetchVerification = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/resume/${resumeId}/github-verification`);
+      const res = await axios.get(`/resume/${resumeId}/github-verification`);
       if (res.data.success) {
         setVerification(res.data.data);
       }
@@ -56,7 +56,7 @@ export const ResumeGitHubVerificationTab: React.FC<ResumeGitHubVerificationTabPr
   const handleRunVerification = async () => {
     try {
       setVerifying(true);
-      const res = await axios.post(`/api/resume/${resumeId}/verify/github`);
+      const res = await axios.post(`/resume/${resumeId}/verify/github`);
       if (res.data.success) {
         // Poll for completion
         setTimeout(() => {

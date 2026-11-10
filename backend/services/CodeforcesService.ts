@@ -1,3 +1,4 @@
+import { extractProfileId } from '../utils/profileInput';
 import { EventEmitter } from 'events';
 import { TaskPriority, TaskStatus, TaskType } from '@prisma/client';
 import { CodeforcesApiClient } from '../integrations/codeforces/CodeforcesApiClient';
@@ -26,7 +27,7 @@ export class CodeforcesService {
       throw new BadRequestError('Codeforces handle is required.');
     }
 
-    const cleanHandle = handle.trim();
+    const cleanHandle = extractProfileId(handle, 'codeforces');
     this.apiClient.validateHandle(cleanHandle);
 
     // Idempotency check: check if a sync or analysis task is already RUNNING or QUEUED for this user

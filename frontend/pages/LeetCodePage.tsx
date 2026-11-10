@@ -116,7 +116,7 @@ export const LeetCodePage: React.FC = () => {
               type="text"
               value={inputUsername}
               onChange={(e) => setInputUsername(e.target.value)}
-              placeholder="e.g. tourist, neetcode, alex_dev"
+              placeholder="Username or profile link, e.g. tourist"
               className="flex-1 px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-amber-500/50"
             />
             <Button

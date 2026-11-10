@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { apiClient as axios } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { Globe, ArrowRight, CheckCircle2, RefreshCw, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Card } from '../ui/Card';
@@ -14,7 +14,7 @@ export const PortfolioDashboardCard: React.FC = () => {
 
   useEffect(() => {
     axios
-      .get('/api/portfolio')
+      .get('/portfolio')
       .then((res) => {
         if (res.data.success && res.data.data) {
           setPortfolio(res.data.data);

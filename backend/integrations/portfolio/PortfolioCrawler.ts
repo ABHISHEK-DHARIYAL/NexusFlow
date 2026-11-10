@@ -105,7 +105,7 @@ export class PortfolioCrawler {
     const origin = originUrlObj.origin;
 
     // Check Mock fallback
-    if (originHostname === 'portfolio.test' || originHostname.includes('test')) {
+    if (originHostname === 'portfolio.test') {
       return this.getMockCrawlResult(validated.normalizedUrl, originHostname);
     }
 

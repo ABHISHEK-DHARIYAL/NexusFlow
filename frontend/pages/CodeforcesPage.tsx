@@ -145,7 +145,7 @@ export const CodeforcesPage: React.FC = () => {
           <form onSubmit={handleConnect} className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
-              placeholder="Enter Codeforces Handle"
+              placeholder="Handle or profile link, e.g. tourist"
               value={inputHandle}
               onChange={(e) => setInputHandle(e.target.value)}
               className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"

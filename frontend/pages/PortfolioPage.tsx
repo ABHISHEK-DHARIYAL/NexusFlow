@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { apiClient as axios } from '../services/apiClient';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Globe,
@@ -38,7 +38,7 @@ export const PortfolioPage: React.FC = () => {
   const fetchPortfolioData = async () => {
     try {
       setError(null);
-      const res = await axios.get('/api/portfolio');
+      const res = await axios.get('/portfolio');
       if (res.data.success && res.data.data) {
         setPortfolio(res.data.data);
         if (res.data.data.analyses && res.data.data.analyses.length > 0) {
@@ -46,8 +46,8 @@ export const PortfolioPage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      if (err.response?.status !== 404) {
-        setError(err.response?.data?.message || 'Failed to load portfolio intelligence data.');
+      if (err.status !== 404) {
+        setError(err.message || 'Failed to load portfolio intelligence data.');
       }
     } finally {
       setLoading(false);
@@ -75,13 +75,13 @@ export const PortfolioPage: React.FC = () => {
     try {
       setSubmitting(true);
       setError(null);
-      const res = await axios.post('/api/portfolio/connect', { url: portfolioUrl.trim() });
+      const res = await axios.post('/portfolio/connect', { url: portfolioUrl.trim() });
       if (res.data.success) {
         setPortfolioUrl('');
         await fetchPortfolioData();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to initiate portfolio crawl.');
+      setError(err.message || 'Failed to initiate portfolio crawl.');
     } finally {
       setSubmitting(false);
     }
@@ -91,11 +91,11 @@ export const PortfolioPage: React.FC = () => {
     if (!window.confirm('Are you sure you want to disconnect this portfolio?')) return;
     try {
       setLoading(true);
-      await axios.delete('/api/portfolio');
+      await axios.delete('/portfolio');
       setPortfolio(null);
       setAnalysis(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to disconnect portfolio.');
+      setError(err.message || 'Failed to disconnect portfolio.');
     } finally {
       setLoading(false);
     }

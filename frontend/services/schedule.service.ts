@@ -1,7 +1,7 @@
-import axios from 'axios';
+import { apiClient as axios } from './apiClient';
 import { ScheduledJob, ScheduledJobExecution, AutomationTemplate, AutomationSummary } from '../types';
 
-const API_BASE = '/api/schedules';
+const API_BASE = '/schedules';
 
 export const scheduleService = {
   async getSchedules(): Promise<ScheduledJob[]> {

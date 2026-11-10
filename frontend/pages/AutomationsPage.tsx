@@ -134,7 +134,7 @@ export const AutomationsPage: React.FC = () => {
       setIsCreateModalOpen(false);
       fetchData();
     } catch (err: any) {
-      showToast('error', err.response?.data?.message || 'Error saving schedule');
+      showToast('error', err.message || 'Error saving schedule');
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiClient as axios } from '../services/apiClient';
 import {
   FileText,
   FileCheck,
@@ -81,7 +81,7 @@ export const ResumePage: React.FC = () => {
   const fetchResume = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/resume');
+      const res = await axios.get('/resume');
       if (res.data.success && res.data.data) {
         setResume(res.data.data);
         if (res.data.data.analyses && res.data.data.analyses.length > 0) {
@@ -102,7 +102,7 @@ export const ResumePage: React.FC = () => {
 
     try {
       setSubmitting(true);
-      const res = await axios.post('/api/resume', {
+      const res = await axios.post('/resume', {
         rawText: content,
         title: 'Developer Resume'
       });

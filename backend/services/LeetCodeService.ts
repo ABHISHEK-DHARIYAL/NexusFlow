@@ -1,3 +1,4 @@
+import { extractProfileId } from '../utils/profileInput';
 import { TaskPriority, TaskStatus, TaskType } from '@prisma/client';
 import { leetCodeApiClient, LeetCodeApiClient } from '../integrations/leetcode/LeetCodeApiClient';
 import { leetCodeAnalysisEngine, LeetCodeAnalysisEngine } from './LeetCodeAnalysisEngine';
@@ -24,7 +25,7 @@ export class LeetCodeService {
       throw new BadRequestError('LeetCode username is required.');
     }
 
-    const cleanUsername = username.trim();
+    const cleanUsername = extractProfileId(username, 'leetcode');
     if (!this.apiClient.validateUsername(cleanUsername)) {
       throw new BadRequestError(`Invalid LeetCode username format: '${username}'. Must be 3-30 alphanumeric characters, underscores or hyphens.`);
     }
